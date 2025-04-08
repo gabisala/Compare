@@ -1,0 +1,104 @@
+---
+description: Tailwind and Responsive Design Standards
+globs: *.tsx,*.ts,*.css
+alwaysApply: false
+---
+# Tailwind and Responsive Design Standards
+
+<rule>
+name: styling_theme_responsive_standards
+description: Standards for styling, theming, and responsive design using Tailwind CSS
+
+filters:
+  # Match files with styling/className attributes
+  - type: content
+    pattern: "className"
+  # Match any component files
+  - type: file_extension
+    pattern: "\\.(tsx|ts|css)$"
+
+actions:
+  - type: suggest
+    conditions:
+      - pattern: "className=\"[^\"]*flex[^\"]*\""
+        message: "Detected Tailwind flex usage - ensure responsive design is considered"
+
+  - type: suggest
+    conditions:
+      - pattern: "style=\\{\\{.*\\}\\}"
+        message: "Avoid inline styles; use Tailwind utility classes instead"
+
+  - type: suggest
+    message: |
+      Follow these Tailwind CSS and responsive design standards:
+
+      1. **Theme Configuration**:
+         - Use `dark:` variant for dark mode compatibility
+         - Example: `className="bg-white dark:bg-slate-800"`
+         - Avoid hardcoded colors; reference theme variables
+         - Toggle theme with `data-theme` attribute on root element
+
+      2. **Responsive Design**:
+         - Use mobile-first approach with responsive breakpoints
+         - Breakpoints: 
+           - sm: 640px (Small devices)
+           - md: 768px (Medium devices)
+           - lg: 1024px (Large devices/tablets)
+           - xl: 1280px (Extra large devices/desktops)
+         - Example: `className="flex-col md:flex-row"`
+
+      3. **Layout Structure**:
+         - Use flex and grid for complex layouts
+         - Split-view layouts: `className="grid grid-cols-1 md:grid-cols-2"`
+         - For document comparison: `className="flex-1 overflow-auto border-r dark:border-gray-700"`
+
+      4. **Component Styling**:
+         - Use consistent spacing (m/p-2, m/p-4, etc.)
+         - Implement focus states for accessibility
+         - Add hover effects for interactive elements
+         - Consistent rounded corners (rounded, rounded-md, etc.)
+
+      5. **Shadow Conventions**:
+         - Use shadow-sm, shadow, shadow-md consistently
+         - Dark mode: adjust shadows with dark:shadow-gray-900
+
+examples:
+  - input: |
+      <div style={{backgroundColor: '#fff', padding: '20px'}}>
+        <div style={{display: 'flex'}}>
+          {/* Content */}
+        </div>
+      </div>
+    output: |
+      <div className="bg-white dark:bg-slate-800 p-5">
+        <div className="flex flex-col md:flex-row">
+          {/* Content */}
+        </div>
+      </div>
+
+  - input: |
+      <div className="container">
+        <div className="left-panel">
+          {/* Document A */}
+        </div>
+        <div className="right-panel">
+          {/* Document B */}
+        </div>
+      </div>
+    output: |
+      <div className="container mx-auto p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-md shadow bg-white dark:bg-slate-800 p-4 overflow-auto">
+            {/* Document A */}
+          </div>
+          <div className="rounded-md shadow bg-white dark:bg-slate-800 p-4 overflow-auto">
+            {/* Document B */}
+          </div>
+        </div>
+      </div>
+
+metadata:
+  priority: high
+  category: styling
+  version: 1.0
+</rule> 

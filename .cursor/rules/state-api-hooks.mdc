@@ -1,0 +1,129 @@
+---
+description: State Management and Hooks Best Practices
+globs: *.tsx,*.ts
+alwaysApply: false
+---
+# State Management and Hooks Best Practices
+
+<rule>
+name: state_management_hooks_standards
+description: Standards for React state management, custom hooks, and Context API usage
+
+filters:
+  # Match React hook usages
+  - type: content
+    pattern: "use[A-Z]\\w*"
+  # Match state management patterns
+  - type: content
+    pattern: "(useState|useContext|createContext)"
+  # Match TypeScript files
+  - type: file_extension
+    pattern: "\\.(tsx|ts)$"
+
+actions:
+  - type: suggest
+    conditions:
+      - pattern: "useState\\<any\\>"
+        message: "Avoid using 'any' type with useState; define proper interface/type"
+
+  - type: suggest
+    conditions:
+      - pattern: "createContext\\(\\)"
+        message: "Provide default values to createContext that match the intended type"
+
+  - type: suggest
+    message: |
+      Follow these state management and hooks best practices:
+
+      1. **State Management Choices**:
+         - Use React's Context API for global UI state (theme, UI preferences)
+         - Consider Zustand for more complex application state
+         - Organize contexts by domain (DocumentContext, ComparisonContext)
+
+      2. **Custom Hooks**:
+         - Create domain-specific hooks for reusable logic
+         - Follow naming convention: `use{Domain}{Action}`
+         - Examples: 
+           - `useDocumentComparison`
+           - `usePdfProcessor`
+           - `useMarkdownRenderer`
+
+      3. **Context API Implementation**:
+         - Create separate files for contexts
+         - Type context values properly with TypeScript
+         - Provide sensible default values
+         - Structure:
+           ```
+           /contexts
+             /DocumentContext
+               - index.tsx (exports everything)
+               - DocumentContext.tsx (context definition)
+               - DocumentProvider.tsx (provider component)
+               - useDocument.ts (custom hook)
+           ```
+
+      4. **State Management Patterns**:
+         - Lift state up to the appropriate level
+         - Use reducer pattern for complex state logic
+         - Memoize expensive calculations with useMemo
+         - Optimize re-renders with useCallback for handlers
+
+      5. **Performance Considerations**:
+         - Use React.memo for pure components
+         - Split contexts to avoid unnecessary re-renders
+         - Use context selectors when possible
+         - Consider web workers for heavy processing
+
+examples:
+  - input: |
+      // Untyped context
+      const MyContext = createContext();
+      
+      function MyComponent() {
+        const [data, setData] = useState();
+        // ...
+      }
+    output: |
+      // Properly typed context
+      interface DocumentContextType {
+        documents: Document[];
+        selectedDocument: Document | null;
+        selectDocument: (id: string) => void;
+        // other methods...
+      }
+      
+      const defaultValue: DocumentContextType = {
+        documents: [],
+        selectedDocument: null,
+        selectDocument: () => {},
+        // default implementations...
+      };
+      
+      const DocumentContext = createContext<DocumentContextType>(defaultValue);
+      
+      function DocumentProvider({ children }: { children: React.ReactNode }) {
+        const [documents, setDocuments] = useState<Document[]>([]);
+        const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+        
+        const selectDocument = useCallback((id: string) => {
+          // Implementation...
+        }, [documents]);
+        
+        const value = useMemo(() => ({
+          documents,
+          selectedDocument,
+          selectDocument,
+        }), [documents, selectedDocument, selectDocument]);
+        
+        return (
+          <DocumentContext.Provider value={value}>
+            {children}
+          </DocumentContext.Provider>
+        );
+      }
+
+metadata:
+  priority: high
+  category: state
+  version: 1.0
+</rule> 

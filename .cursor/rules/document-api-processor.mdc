@@ -1,0 +1,143 @@
+---
+description: Document Processing Standards
+globs: *.tsx,*.ts
+alwaysApply: false
+---
+# Document Processing Standards
+
+<rule>
+name: document_processing_standards
+description: Standards for PDF and Markdown document processing, parsing, and comparison
+
+filters:
+  # Match document processing related files
+  - type: content
+    pattern: "(PDF|Markdown|document|compare|diff)"
+  # Match TypeScript files
+  - type: file_extension
+    pattern: "\\.(tsx|ts)$"
+
+actions:
+  - type: suggest
+    conditions:
+      - pattern: "import.*pdf\\.js"
+        message: "Ensure lazy loading for PDF.js to optimize initial load time"
+
+  - type: suggest
+    conditions:
+      - pattern: "new\\s+Worker\\("
+        message: "Good use of Web Workers for document processing. Ensure proper error handling."
+
+  - type: suggest
+    message: |
+      Follow these document processing standards:
+
+      1. **PDF Processing**:
+         - Use PDF.js for rendering and text extraction
+         - Implement lazy loading for documents
+         - Process PDF documents in chunks to avoid UI freezing
+         - Structure:
+           ```
+           /lib
+             /pdf
+               - PdfProcessor.ts (core logic)
+               - PdfRenderer.tsx (rendering component)
+               - PdfExtractor.ts (text extraction)
+               - types.ts (PDF-related types)
+           ```
+
+      2. **Markdown Processing**:
+         - Use React-Markdown for rendering
+         - Implement Remark/Rehype plugins for extended features
+         - Use Prism.js for syntax highlighting
+         - Structure:
+           ```
+           /lib
+             /markdown
+               - MarkdownProcessor.ts (core logic)
+               - MarkdownRenderer.tsx (rendering component)
+               - SyntaxHighlighter.tsx (code highlighting)
+               - types.ts (Markdown-related types)
+           ```
+
+      3. **Comparison Engine**:
+         - Implement diff algorithm (diff-match-patch recommended)
+         - Process comparisons in Web Workers for large documents
+         - Create modular diff highlights that work with both document types
+         - Structure:
+           ```
+           /lib
+             /comparison
+               - diffWorker.ts (web worker for diff processing)
+               - DiffEngine.ts (core comparison logic)
+               - DiffHighlighter.tsx (highlighting component)
+               - types.ts (comparison-related types)
+           ```
+
+      4. **Performance Optimizations**:
+         - Use Web Workers for heavy processing
+         - Implement chunk-based processing for large documents
+         - Cache processed results when appropriate
+         - Provide clear loading states during processing
+
+      5. **Error Handling**:
+         - Implement robust error handling for document parsing
+         - Provide user-friendly error messages
+         - Add fallback rendering for partially corrupted documents
+         - Log processing errors for debugging
+
+examples:
+  - input: |
+      // Synchronous PDF processing
+      function processPdf(file) {
+        const pdf = pdfjs.getDocument(file);
+        // process and render...
+      }
+    output: |
+      // Optimized PDF processing with Web Worker
+      async function processPdf(file: File): Promise<ProcessedPdf> {
+        try {
+          // If processing is intensive, use a web worker
+          if (file.size > LARGE_FILE_THRESHOLD) {
+            return await processPdfInWorker(file);
+          }
+          
+          // For smaller files, process in main thread but still async
+          const pdf = await pdfjs.getDocument({
+            url: URL.createObjectURL(file),
+            cMapUrl: CMAP_URL,
+            cMapPacked: true,
+          }).promise;
+          
+          // Extract text page by page to avoid blocking UI
+          const numPages = pdf.numPages;
+          const pages = [];
+          
+          for (let i = 1; i <= numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            pages.push({
+              pageNumber: i,
+              textContent,
+              // other page data
+            });
+          }
+          
+          return { 
+            pages,
+            metadata: {
+              title: pdf.documentInfo?.Title,
+              // other metadata
+            }
+          };
+        } catch (error) {
+          console.error('PDF processing error:', error);
+          throw new DocumentProcessingError('Failed to process PDF', { cause: error });
+        }
+      }
+
+metadata:
+  priority: high
+  category: document-processing
+  version: 1.0
+</rule> 

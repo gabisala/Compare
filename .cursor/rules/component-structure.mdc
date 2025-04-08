@@ -1,0 +1,83 @@
+---
+description: Component Architecture Standards
+globs: *.tsx,*.ts
+alwaysApply: false
+---
+# Component Architecture Standards
+
+<rule>
+name: component_architecture_standards
+description: Standards for component structure following atomic design principles
+
+filters:
+  # Match React component files
+  - type: file_extension
+    pattern: "\\.tsx$"
+  # Match component creation
+  - type: content
+    pattern: "(?m)^(export|function)\\s+\\w+\\s*\\(.*?\\)\\s*\\{"
+
+actions:
+  - type: suggest
+    conditions:
+      - pattern: "function\\s+\\w+\\s*\\("
+        negate: true
+        message: "Components should be defined as named functions"
+
+  - type: suggest
+    message: |
+      Follow atomic design principles for components:
+
+      1. **Atoms**: Basic building blocks (buttons, inputs, icons)
+         - Keep as pure and stateless as possible
+         - Accept props with proper TypeScript interfaces
+         - Example: `components/atoms/Button.tsx`
+
+      2. **Molecules**: Combinations of atoms
+         - Group related atoms together
+         - Maintain specific functionality
+         - Example: `components/molecules/SearchBar.tsx`
+
+      3. **Organisms**: Complex UI sections
+         - Combine molecules and atoms
+         - Represent distinct sections of the interface
+         - Example: `components/organisms/DocumentViewer.tsx`
+
+      4. **Templates**: Page layouts
+         - Define page structure
+         - Handle responsive layout variations
+         - Example: `components/templates/ComparisonLayout.tsx`
+
+      5. **Pages**: Full page components
+         - Compose from templates and organisms
+         - Handle data fetching and state
+         - Example: `app/(routes)/compare/page.tsx`
+
+      For client-side components:
+      - Add 'use client' directive at the top
+      - Implement memoization for expensive renders
+      - Follow naming convention: PascalCase.tsx
+
+examples:
+  - input: |
+      // Bad
+      export const documentViewer = ({document}) => {
+        return <div>{document.content}</div>
+      }
+    output: |
+      // Good
+      'use client';
+      
+      interface DocumentViewerProps {
+        document: Document;
+      }
+      
+      export function DocumentViewer({ document }: DocumentViewerProps) {
+        return <div>{document.content}</div>;
+      }
+
+metadata:
+  priority: high
+  category: components
+  version: 1.0
+</rule> 

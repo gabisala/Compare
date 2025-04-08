@@ -1,0 +1,111 @@
+---
+description: Accessibility Standards
+globs: *.tsx,*.ts
+alwaysApply: false
+---
+# Accessibility Standards
+
+<rule>
+name: accessibility_standards
+description: Standards for ensuring accessibility compliance throughout the application
+
+filters:
+  # Match component files
+  - type: file_extension
+    pattern: "\\.tsx$"
+  # Match interactive elements
+  - type: content
+    pattern: "<(button|a|input|select|textarea)"
+  # Match ARIA attributes
+  - type: content
+    pattern: "aria-"
+
+actions:
+  - type: suggest
+    conditions:
+      - pattern: "<button[^>]*>(?![^<]*aria-)"
+        message: "Consider adding appropriate ARIA attributes to buttons for better accessibility"
+
+  - type: suggest
+    conditions:
+      - pattern: "<img[^>]*(?!alt=)"
+        message: "Images must have alt attributes for screen readers"
+
+  - type: suggest
+    message: |
+      Follow these accessibility standards to ensure WCAG compliance:
+
+      1. **Semantic HTML**:
+         - Use proper HTML elements for their intended purpose
+         - Prefer semantic elements over divs with roles
+         - Structure document with proper heading hierarchy
+         - Use landmarks for main content areas
+
+      2. **ARIA Attributes**:
+         - Add aria-label for elements without visible text
+         - Use aria-expanded for expandable elements
+         - Implement aria-live regions for dynamic content
+         - Add aria-current for current page/item indicators
+
+      3. **Keyboard Navigation**:
+         - Ensure all interactive elements are keyboard accessible
+         - Maintain logical tab order (tabIndex)
+         - Implement visible focus indicators
+         - Add keyboard shortcuts for common actions
+
+      4. **Color and Contrast**:
+         - Maintain minimum contrast ratio of 4.5:1 for text
+         - Don't rely on color alone to convey information
+         - For highlighting differences in documents:
+           - Use patterns or symbols alongside colors
+           - Ensure sufficient contrast for highlighted text
+
+      5. **Screen Reader Support**:
+         - Test with popular screen readers
+         - Announce dynamic content changes
+         - Provide context for screen reader users
+         - Add descriptive labels for file uploads
+
+examples:
+  - input: |
+      <div className="button" onClick={handleClick}>
+        Save
+      </div>
+    output: |
+      <button
+        className="bg-primary hover:bg-primary-dark text-white rounded px-4 py-2 focus:ring-2"
+        onClick={handleClick}
+        aria-label="Save document"
+      >
+        Save
+      </button>
+
+  - input: |
+      <div className="diff-highlight">
+        <span className="bg-red-300">Deleted text</span>
+        <span className="bg-green-300">Added text</span>
+      </div>
+    output: |
+      <div 
+        className="diff-highlight" 
+        aria-label="Document differences"
+      >
+        <span 
+          className="bg-red-300 dark:bg-red-800 line-through" 
+          aria-label="Deleted text"
+        >
+          Deleted text
+        </span>
+        <span 
+          className="bg-green-300 dark:bg-green-800 underline" 
+          aria-label="Added text"
+        >
+          Added text
+        </span>
+      </div>
+
+metadata:
+  priority: high
+  category: accessibility
+  version: 1.0
+</rule> 
