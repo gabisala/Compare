@@ -22,6 +22,16 @@ export default function Home() {
     router.push('/compare');
   };
 
+  const handleUseSampleDocsSideBySide = () => {
+    const originalDoc = createSampleMarkdown('original');
+    const modifiedDoc = createSampleMarkdown('modified');
+    
+    setLeftDocument(originalDoc);
+    setRightDocument(modifiedDoc);
+    
+    router.push('/side-by-side');
+  };
+
   return (
     <main className="min-h-screen flex flex-col">
       <header className="border-b bg-background flex items-center justify-between p-4">
@@ -46,13 +56,23 @@ export default function Home() {
             <p className="text-muted-foreground mb-4">
               Don't have documents to compare? Try our sample documents:
             </p>
-            <Button 
-              onClick={handleUseSampleDocs}
-              className="flex items-center gap-2"
-            >
-              Use Sample Documents
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Button 
+                onClick={handleUseSampleDocs}
+                className="flex items-center gap-2"
+              >
+                Standard Comparison
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={handleUseSampleDocsSideBySide}
+                className="flex items-center gap-2"
+                variant="outline"
+              >
+                Side-by-Side Comparison
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

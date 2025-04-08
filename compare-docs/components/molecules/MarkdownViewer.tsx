@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
 import { Button } from '../ui/button';
-import { Eye, Code } from 'lucide-react';
+import { Eye, Code, Link as LinkIcon } from 'lucide-react';
 import { DiffResult, Diff } from '@/lib/comparison-engine';
 
 // Load Prism languages
@@ -46,6 +46,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   const diffPanelRef = useRef<HTMLDivElement>(null);
   const contentPanelRef = useRef<HTMLDivElement>(null);
   
+  // Add a state to track when this diff panel is actively being scrolled by sync
+  const [isBeingSynced, setIsBeingSynced] = useState(false);
+  
   // Apply syntax highlighting when component mounts or content changes
   useEffect(() => {
     if (viewMode === 'raw') {
@@ -76,6 +79,14 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       setHighlightedContent(markdownContent);
     }
   }, [highlightDiffs, diffResult, side, markdownContent]);
+
+  // Visual feedback for synced scrolling
+  useEffect(() => {
+    if (isBeingSynced) {
+      const timer = setTimeout(() => setIsBeingSynced(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isBeingSynced]);
 
   // Process diffs into GitHub-style line-by-line format with line numbers
   const processGitHubStyleDiff = (diffs: Diff[], side: 'left' | 'right'): DiffLine[] => {
@@ -353,13 +364,20 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         {/* Diff panel for showing differences */}
         {highlightDiffs && diffResult && showDiffPanel && diffLines.length > 0 && (
           <div 
-            className="border rounded-md bg-white dark:bg-slate-800 p-4"
+            className="border rounded-md bg-white dark:bg-slate-800 p-4 diff-panel"
             ref={diffPanelRef}
           >
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-lg font-semibold">
                 {side === 'left' ? 'Modifications in This Document' : 'Modifications in Comparison Document'}
               </h3>
+              
+              {isBeingSynced && (
+                <div className="flex items-center text-blue-500 text-sm mr-2">
+                  <LinkIcon className="h-3 w-3 mr-1 animate-pulse" />
+                  <span>Synced</span>
+                </div>
+              )}
             </div>
             
             <div className="tabs mb-4">
@@ -384,14 +402,55 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               </Button>
             </div>
             
-            <div className="diff-content bg-gray-50 dark:bg-gray-900 rounded border overflow-auto" 
+            <div 
+              className={`diff-content bg-gray-50 dark:bg-gray-900 rounded border overflow-auto ${isBeingSynced ? 'ring-1 ring-blue-400' : ''}`}
               style={{ 
                 maxHeight: '28rem',
                 ...(diffDisplayMode === 'github' && fixedDiffPanelHeight ? { 
                   height: `${fixedDiffPanelHeight}px`,
                   minHeight: '200px'
                 } : {})
-              }}>
+              }}
+              data-sync-scroll="true"
+              data-viewer-type="markdown"
+              data-side={side}
+              onScroll={(e) => {
+                // This helps debug scroll events
+                console.log(`Markdown diff panel scroll (${side})`, e.currentTarget.scrollTop);
+              }}
+              // Custom event listener to detect when another component is syncing this panel
+              ref={(el) => {
+                if (el) {
+                  // Setup mutation observer to detect style changes that indicate syncing
+                  const observer = new MutationObserver(() => {
+                    // When scrollTop changes due to external sync, show visual feedback
+                    setIsBeingSynced(true);
+                  });
+                  
+                  observer.observe(el, {
+                    attributes: true,
+                    attributeFilter: ['style', 'scrollTop'],
+                  });
+                  
+                  // Store the original scrollTo method
+                  const originalScrollTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
+                  
+                  if (originalScrollTop && originalScrollTop.set) {
+                    // Create a proxy to detect when scrollTop is set programmatically
+                    Object.defineProperty(el, 'scrollTop', {
+                      set: function(v) {
+                        setIsBeingSynced(true);
+                        originalScrollTop.set?.call(this, v);
+                      },
+                      get: function() {
+                        return originalScrollTop.get?.call(this);
+                      },
+                      configurable: true
+                    });
+                  }
+                }
+              }}
+            >
               {diffDisplayMode === 'github' ? (
                 <div className="github-diff-content font-mono text-sm">
                   {diffLines.map((line, index) => renderDiffLine(line, index))}

@@ -8,6 +8,10 @@ export interface DiffResult {
     left: string;
     right: string;
   };
+  lineMap?: {
+    left: Map<number, number>;
+    right: Map<number, number>;
+  };
 }
 
 /**
@@ -57,10 +61,64 @@ export function compareTexts(
   // Apply cleanup to make the diff more human-readable
   dmp.diff_cleanupSemantic(diffs);
 
+  // Generate line mapping for alignment
+  const lineMap = generateLineMap(leftText.split('\n'), rightText.split('\n'), diffs);
+
   return {
     diffs,
-    formattedDiffs: formatDiffs(diffs)
+    formattedDiffs: formatDiffs(diffs),
+    lineMap
   };
+}
+
+/**
+ * Generate a mapping between line numbers in the left and right documents
+ * to help with alignment in the UI
+ */
+function generateLineMap(
+  leftLines: string[],
+  rightLines: string[],
+  diffs: Diff[]
+): { left: Map<number, number>; right: Map<number, number> } {
+  const leftMap = new Map<number, number>();
+  const rightMap = new Map<number, number>();
+  
+  let leftLine = 0;
+  let rightLine = 0;
+  
+  // Process each diff to build the line mapping
+  diffs.forEach(([operation, text]) => {
+    const lines = text.split('\n');
+    const lineCount = lines.length - (lines[lines.length - 1] === '' ? 1 : 0);
+    
+    switch (operation) {
+      case -1: // Deletion (present in left, absent in right)
+        // Map each line in the deletion to the current right position
+        for (let i = 0; i < lineCount; i++) {
+          leftMap.set(leftLine + i, rightLine);
+        }
+        leftLine += lineCount;
+        break;
+      case 0: // No change (present in both)
+        // Map matching lines one-to-one
+        for (let i = 0; i < lineCount; i++) {
+          leftMap.set(leftLine + i, rightLine + i);
+          rightMap.set(rightLine + i, leftLine + i);
+        }
+        leftLine += lineCount;
+        rightLine += lineCount;
+        break;
+      case 1: // Addition (absent in left, present in right)
+        // Map each line in the addition to the current left position
+        for (let i = 0; i < lineCount; i++) {
+          rightMap.set(rightLine + i, leftLine);
+        }
+        rightLine += lineCount;
+        break;
+    }
+  });
+  
+  return { left: leftMap, right: rightMap };
 }
 
 /**
@@ -95,13 +153,44 @@ function formatDiffs(diffs: Diff[]): { left: string; right: string } {
 }
 
 /**
- * Extract text from PDF data for comparison
- * This is a placeholder that would need to be implemented with PDF.js
+ * Extract text from PDF data for comparison using PDF.js
  */
 export async function extractTextFromPDF(pdfData: ArrayBuffer): Promise<string> {
-  // This is where you would implement PDF text extraction
-  // For now, we'll return a placeholder message
-  return "PDF text extraction to be implemented with PDF.js";
+  if (typeof window === 'undefined') {
+    return "Server-side PDF extraction not supported";
+  }
+
+  try {
+    // Import PDF.js dynamically
+    const pdfjsLib = await import('pdfjs-dist');
+    
+    // Set worker source
+    const workerSrc = '/pdf-worker/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+    
+    // Load the PDF document
+    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+    
+    // Extract text from all pages
+    let combinedText = '';
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      
+      // Concatenate the text from all items
+      const pageText = textContent.items
+        .map(item => 'str' in item ? item.str : '')
+        .join(' ');
+      
+      combinedText += pageText + '\n';
+    }
+    
+    return combinedText;
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    return `Error extracting PDF text: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
 
 /**

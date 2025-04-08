@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/atoms/theme-toggle";
 import Link from "next/link";
 import ComparisonView from "@/components/organisms/ComparisonView";
 import { useDocumentContext } from "@/lib/document-context";
-import { compareTexts } from "@/lib/comparison-engine";
+import { compareTexts, comparePDFs } from "@/lib/comparison-engine";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 export default function ComparePage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { leftDocument, rightDocument } = useDocumentContext();
   const [isLoading, setIsLoading] = useState(true);
@@ -32,28 +33,47 @@ export default function ComparePage() {
       return;
     }
 
-    try {
-      // Different comparison based on document type
-      if (leftDocument.type === 'markdown' && rightDocument.type === 'markdown') {
-        // For markdown, we can directly compare the text content
-        const result = compareTexts(
-          leftDocument.data as string, 
-          rightDocument.data as string,
-          { ignoreWhitespace, ignoreCase }
-        );
-        setDiffResult(result);
-      } else {
-        // For PDFs, we'll need to extract text first
-        // This is a placeholder until PDF text extraction is fully implemented
-        setDiffResult(null);
+    setIsLoading(true);
+    
+    const compareDocuments = async () => {
+      try {
+        // Different comparison based on document type
+        if (leftDocument.type === 'markdown' && rightDocument.type === 'markdown') {
+          // For markdown, we can directly compare the text content
+          console.log('Comparing markdown with options:', { ignoreWhitespace, ignoreCase });
+          const result = compareTexts(
+            leftDocument.data as string, 
+            rightDocument.data as string,
+            { ignoreWhitespace, ignoreCase }
+          );
+          setDiffResult(result);
+        } else if (leftDocument.type === 'pdf' && rightDocument.type === 'pdf') {
+          // For PDFs, we need to extract text first
+          console.log('Comparing PDFs with options:', { ignoreWhitespace, ignoreCase });
+          const result = await comparePDFs(
+            leftDocument.data as ArrayBuffer,
+            rightDocument.data as ArrayBuffer,
+            { ignoreWhitespace, ignoreCase }
+          );
+          setDiffResult(result);
+        } else {
+          // Mixed document types
+          setError("Cannot compare different document types. Please upload two documents of the same type.");
+        }
+      } catch (err) {
+        console.error('Error comparing documents:', err);
+        setError("Failed to compare documents. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      setIsLoading(false);
-    } catch (err) {
-      console.error('Error comparing documents:', err);
-      setError("Failed to compare documents.");
-      setIsLoading(false);
-    }
+    // Add a slight delay to ensure state has been properly updated
+    const timeoutId = setTimeout(() => {
+      compareDocuments();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [leftDocument, rightDocument, ignoreWhitespace, ignoreCase]);
 
   return (
@@ -66,6 +86,13 @@ export default function ComparePage() {
             </Button>
           </Link>
           <h1 className="text-2xl font-semibold">Compare Docs</h1>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => router.push('/side-by-side')}
+          >
+            Switch to Side-by-Side View
+          </Button>
         </div>
         <div className="flex items-center gap-4">
           <ThemeToggle />
@@ -78,27 +105,36 @@ export default function ComparePage() {
             <Checkbox 
               id="sync-scroll" 
               checked={syncScroll} 
-              onCheckedChange={(checked) => setSyncScroll(checked as boolean)}
+              onCheckedChange={(checked) => {
+                setSyncScroll(checked === true);
+              }}
+              className="border-primary"
             />
-            <Label htmlFor="sync-scroll">Sync scrolling</Label>
+            <Label htmlFor="sync-scroll" className="cursor-pointer">Sync scrolling</Label>
           </div>
           
           <div className="flex items-center gap-2">
             <Checkbox 
               id="ignore-whitespace" 
               checked={ignoreWhitespace} 
-              onCheckedChange={(checked) => setIgnoreWhitespace(checked as boolean)}
+              onCheckedChange={(checked) => {
+                setIgnoreWhitespace(checked === true);
+              }}
+              className="border-primary"
             />
-            <Label htmlFor="ignore-whitespace">Ignore whitespace</Label>
+            <Label htmlFor="ignore-whitespace" className="cursor-pointer">Ignore whitespace</Label>
           </div>
           
           <div className="flex items-center gap-2">
             <Checkbox 
               id="ignore-case" 
               checked={ignoreCase} 
-              onCheckedChange={(checked) => setIgnoreCase(checked as boolean)}
+              onCheckedChange={(checked) => {
+                setIgnoreCase(checked === true);
+              }}
+              className="border-primary"
             />
-            <Label htmlFor="ignore-case">Ignore case</Label>
+            <Label htmlFor="ignore-case" className="cursor-pointer">Ignore case</Label>
           </div>
         </div>
       </div>
@@ -131,6 +167,7 @@ export default function ComparePage() {
               rightDocument={rightDocument}
               diffResult={diffResult || undefined}
               syncScroll={syncScroll}
+              onSyncScrollChange={(value) => setSyncScroll(value)}
             />
           </div>
         ) : (

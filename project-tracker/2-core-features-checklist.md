@@ -4,54 +4,54 @@ This checklist covers the implementation of the primary features and functionali
 
 ## PDF Document Handling
 
-- [ ] Implement PDF document processing
-  - [ ] Integrate PDF.js library
-  - [ ] Create PDF document renderer component
-  - [ ] Add page navigation controls
-  - [ ] Implement text extraction for comparison
-- [ ] Add PDF viewer features
-  - [ ] Implement multi-page navigation
-  - [ ] Add zoom controls
-  - [ ] Create synchronized scrolling between documents
-  - [ ] Enable text selection in PDF view
+- [x] Implement PDF document processing
+  - [x] Integrate PDF.js library
+  - [x] Create PDF document renderer component
+  - [x] Add page navigation controls
+  - [x] Implement text extraction for comparison
+- [x] Add PDF viewer features
+  - [x] Implement multi-page navigation
+  - [x] Add zoom controls
+  - [x] Create synchronized scrolling between documents
+  - [x] Enable text selection in PDF view
 
 ## Markdown Document Handling
 
-- [ ] Implement Markdown document processing
-  - [ ] Integrate Markdown parser (Marked.js or Remark)
-  - [ ] Create Markdown renderer component
-  - [ ] Add syntax highlighting with Prism.js
-  - [ ] Implement line numbering
-- [ ] Add Markdown viewer features
-  - [ ] Create toggle between raw and rendered views
-  - [ ] Implement synchronized scrolling
-  - [ ] Add line-by-line comparison mode
-  - [ ] Enable text selection in Markdown view
+- [x] Implement Markdown document processing
+  - [x] Integrate Markdown parser (React-Markdown)
+  - [x] Create Markdown renderer component
+  - [x] Add syntax highlighting with Prism.js
+  - [x] Implement line numbering
+- [x] Add Markdown viewer features
+  - [x] Create toggle between raw and rendered views
+  - [x] Implement synchronized scrolling
+  - [x] Add line-by-line comparison mode
+  - [x] Enable text selection in Markdown view
 
 ## Comparison Engine
 
-- [ ] Build document comparison core
-  - [ ] Implement diff algorithm (Myers or diff-match-patch)
-  - [ ] Create text normalization functions
-  - [ ] Build character/word-level diff generation
-  - [ ] Add metadata comparison for documents
-- [ ] Create difference highlighting system
-  - [ ] Implement addition highlighting (green)
-  - [ ] Implement deletion highlighting (red)
-  - [ ] Add scrollbar indicators for navigating differences
-  - [ ] Create minimap overview of differences
+- [x] Build document comparison core
+  - [x] Implement diff algorithm (diff-match-patch)
+  - [x] Create text normalization functions
+  - [x] Build character/word-level diff generation
+  - [x] Add metadata comparison for documents
+- [x] Create difference highlighting system
+  - [x] Implement addition highlighting (green)
+  - [x] Implement deletion highlighting (red)
+  - [x] Add scrollbar indicators for navigating differences
+  - [x] Create minimap overview of differences
 
 ## User Interface Enhancements
 
-- [ ] Implement responsive design adaptations
-  - [ ] Desktop view optimization
-  - [ ] Tablet view adjustments
-  - [ ] Mobile view with stacked interface
-- [ ] Add user control features
-  - [ ] Create toolbar with view options
-  - [ ] Add comparison controls (whitespace toggle, etc.)
-  - [ ] Implement split-view adjustment
-  - [ ] Add file selection/replacement options
+- [x] Implement responsive design adaptations
+  - [x] Desktop view optimization
+  - [x] Tablet view adjustments
+  - [x] Mobile view with stacked interface
+- [x] Add user control features
+  - [x] Create toolbar with view options
+  - [x] Add comparison controls (whitespace toggle, etc.)
+  - [x] Implement split-view adjustment
+  - [x] Add file selection/replacement options
 
 ## Core Accessibility
 
