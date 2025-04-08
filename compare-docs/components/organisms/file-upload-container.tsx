@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileUpload } from "@/components/molecules/file-upload";
 import { Button } from "@/components/ui/button";
-import { compareFiles } from "@/lib/file-utils";
+import { processFile, validateFile } from "@/lib/file-utils";
+import { useDocumentContext } from "@/lib/document-context";
 
 interface FileState {
   file: File | null;
@@ -14,6 +15,8 @@ interface FileState {
 
 export function FileUploadContainer() {
   const router = useRouter();
+  const { setLeftDocument, setRightDocument } = useDocumentContext();
+  
   const [leftFile, setLeftFile] = useState<FileState>({
     file: null,
     name: "",
@@ -29,6 +32,7 @@ export function FileUploadContainer() {
 
   const handleCompare = async () => {
     if (!leftFile.file || !rightFile.file) {
+      setError("Please upload both documents to compare.");
       return;
     }
     
@@ -36,23 +40,19 @@ export function FileUploadContainer() {
     setError(null);
     
     try {
-      // Store comparison results in localStorage for the comparison page to access
-      // In a real production app, you might use a more robust state management solution
-      const comparisonResult = await compareFiles(leftFile.file, rightFile.file);
+      // Process both files and store them in the document context
+      const leftDocument = await processFile(leftFile.file);
+      const rightDocument = await processFile(rightFile.file);
       
-      // Store only a reference to the files due to localStorage size limitations
-      localStorage.setItem('compareDocsData', JSON.stringify({
-        file1Name: comparisonResult.file1Name,
-        file2Name: comparisonResult.file2Name,
-        // We'd typically save this to a server or use IndexedDB for larger data
-        differences: comparisonResult.differences
-      }));
+      // Store documents in context
+      setLeftDocument(leftDocument);
+      setRightDocument(rightDocument);
       
       // Navigate to the comparison page
-      router.push(`/compare?file1=${encodeURIComponent(leftFile.name)}&file2=${encodeURIComponent(rightFile.name)}`);
+      router.push('/compare');
     } catch (err) {
       console.error(err);
-      setError("Failed to compare files. Please try again.");
+      setError("Failed to process files. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -64,6 +64,13 @@ export function FileUploadContainer() {
   };
 
   const handleLeftFileAccepted = (file: File) => {
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      // Use a default error message if message is undefined
+      setError(validation.message || "Invalid file format");
+      return;
+    }
+    
     setLeftFile({
       file,
       name: file.name,
@@ -72,6 +79,13 @@ export function FileUploadContainer() {
   };
 
   const handleRightFileAccepted = (file: File) => {
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      // Use a default error message if message is undefined
+      setError(validation.message || "Invalid file format");
+      return;
+    }
+    
     setRightFile({
       file,
       name: file.name,

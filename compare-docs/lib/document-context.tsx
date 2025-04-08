@@ -1,29 +1,25 @@
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import { DiffResult } from "./comparison-engine";
 
-interface DocumentDiff {
-  additions: { line: number; content: string }[];
-  deletions: { line: number; content: string }[];
+export interface Document {
+  name: string;
+  type: 'pdf' | 'markdown';
+  data: ArrayBuffer | string;
 }
 
 interface DocumentComparisonState {
-  leftDocument: {
-    name: string;
-    content: string;
-  } | null;
-  rightDocument: {
-    name: string;
-    content: string;
-  } | null;
-  differences: DocumentDiff | null;
+  leftDocument: Document | null;
+  rightDocument: Document | null;
+  diffResult: DiffResult | null;
   isProcessing: boolean;
   error: string | null;
 }
 
 interface DocumentContextType extends DocumentComparisonState {
-  setLeftDocument: (name: string, content: string) => void;
-  setRightDocument: (name: string, content: string) => void;
+  setLeftDocument: (document: Document) => void;
+  setRightDocument: (document: Document) => void;
   compareDocuments: () => void;
   clearDocuments: () => void;
   setError: (error: string | null) => void;
@@ -35,23 +31,87 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DocumentComparisonState>({
     leftDocument: null,
     rightDocument: null,
-    differences: null,
+    diffResult: null,
     isProcessing: false,
     error: null,
   });
 
-  const setLeftDocument = (name: string, content: string) => {
+  // Initialize from localStorage if available
+  useEffect(() => {
+    try {
+      const storedState = localStorage.getItem("compareDocsState");
+      if (storedState) {
+        const parsedState = JSON.parse(storedState);
+        
+        // We need to handle ArrayBuffer serialization
+        const leftDocument = parsedState.leftDocument ? {
+          ...parsedState.leftDocument,
+          // Convert base64 back to ArrayBuffer if it's a PDF
+          data: parsedState.leftDocument.type === 'pdf' 
+            ? base64ToArrayBuffer(parsedState.leftDocument.data as string)
+            : parsedState.leftDocument.data
+        } : null;
+        
+        const rightDocument = parsedState.rightDocument ? {
+          ...parsedState.rightDocument,
+          // Convert base64 back to ArrayBuffer if it's a PDF
+          data: parsedState.rightDocument.type === 'pdf'
+            ? base64ToArrayBuffer(parsedState.rightDocument.data as string)
+            : parsedState.rightDocument.data
+        } : null;
+        
+        setState({
+          ...parsedState,
+          leftDocument,
+          rightDocument
+        });
+      }
+    } catch (error) {
+      console.error("Failed to restore state from localStorage:", error);
+    }
+  }, []);
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    try {
+      if (state.leftDocument || state.rightDocument) {
+        // We need to handle ArrayBuffer serialization
+        const stateToStore = {
+          ...state,
+          // Convert ArrayBuffer to base64 for storage
+          leftDocument: state.leftDocument ? {
+            ...state.leftDocument,
+            data: state.leftDocument.type === 'pdf'
+              ? arrayBufferToBase64(state.leftDocument.data as ArrayBuffer)
+              : state.leftDocument.data
+          } : null,
+          rightDocument: state.rightDocument ? {
+            ...state.rightDocument,
+            data: state.rightDocument.type === 'pdf'
+              ? arrayBufferToBase64(state.rightDocument.data as ArrayBuffer)
+              : state.rightDocument.data
+          } : null
+        };
+        
+        localStorage.setItem("compareDocsState", JSON.stringify(stateToStore));
+      }
+    } catch (error) {
+      console.error("Failed to save state to localStorage:", error);
+    }
+  }, [state]);
+
+  const setLeftDocument = (document: Document) => {
     setState(prev => ({
       ...prev,
-      leftDocument: { name, content },
+      leftDocument: document,
       error: null,
     }));
   };
 
-  const setRightDocument = (name: string, content: string) => {
+  const setRightDocument = (document: Document) => {
     setState(prev => ({
       ...prev,
-      rightDocument: { name, content },
+      rightDocument: document,
       error: null,
     }));
   };
@@ -68,35 +128,11 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, isProcessing: true, error: null }));
 
     try {
-      // In a real implementation, we would use a more sophisticated diff algorithm
-      // This is a simplified version for demonstration
-      const leftLines = state.leftDocument.content.split("\n");
-      const rightLines = state.rightDocument.content.split("\n");
-
-      const additions: { line: number; content: string }[] = [];
-      const deletions: { line: number; content: string }[] = [];
-
-      // Very simple diff algorithm
-      for (let i = 0; i < Math.max(leftLines.length, rightLines.length); i++) {
-        if (i >= leftLines.length) {
-          // Addition (line in right but not in left)
-          additions.push({ line: i, content: rightLines[i] });
-        } else if (i >= rightLines.length) {
-          // Deletion (line in left but not in right)
-          deletions.push({ line: i, content: leftLines[i] });
-        } else if (leftLines[i] !== rightLines[i]) {
-          // Change (different content)
-          deletions.push({ line: i, content: leftLines[i] });
-          additions.push({ line: i, content: rightLines[i] });
-        }
-      }
-
-      // Simulate async process
-      await new Promise(resolve => setTimeout(resolve, 500));
-
+      // In a real implementation, we would use the comparison-engine.ts
+      // But for now, we'll set a placeholder diff result
       setState(prev => ({
         ...prev,
-        differences: { additions, deletions },
+        diffResult: { diffs: [] },
         isProcessing: false,
       }));
     } catch (error) {
@@ -112,10 +148,11 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     setState({
       leftDocument: null,
       rightDocument: null,
-      differences: null,
+      diffResult: null,
       isProcessing: false,
       error: null,
     });
+    localStorage.removeItem("compareDocsState");
   };
 
   const setError = (error: string | null) => {
@@ -136,6 +173,26 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
       {children}
     </DocumentContext.Provider>
   );
+}
+
+// Helper function to convert ArrayBuffer to base64 for storage
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const binary = new Uint8Array(buffer);
+  const bytes = binary.reduce((acc, byte) => acc + String.fromCharCode(byte), '');
+  return btoa(bytes);
+}
+
+// Helper function to convert base64 back to ArrayBuffer
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  return bytes.buffer;
 }
 
 export function useDocumentContext() {

@@ -5,95 +5,56 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/atoms/theme-toggle";
 import Link from "next/link";
-
-interface ComparisonData {
-  file1Name: string;
-  file2Name: string;
-  differences: {
-    additions: { line: number; content: string }[];
-    deletions: { line: number; content: string }[];
-  };
-}
+import ComparisonView from "@/components/organisms/ComparisonView";
+import { useDocumentContext } from "@/lib/document-context";
+import { compareTexts } from "@/lib/comparison-engine";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export default function ComparePage() {
   const searchParams = useSearchParams();
+  const { leftDocument, rightDocument } = useDocumentContext();
   const [isLoading, setIsLoading] = useState(true);
-  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [diffResult, setDiffResult] = useState<ReturnType<typeof compareTexts> | null>(null);
+  const [syncScroll, setSyncScroll] = useState(true);
+  const [ignoreWhitespace, setIgnoreWhitespace] = useState(false);
+  const [ignoreCase, setIgnoreCase] = useState(false);
 
-  const file1Name = searchParams.get('file1');
-  const file2Name = searchParams.get('file2');
-
+  // Extract file names from URL if available, otherwise use context
+  const file1Name = searchParams.get('file1') || leftDocument?.name || '';
+  const file2Name = searchParams.get('file2') || rightDocument?.name || '';
+  
   useEffect(() => {
+    if (!leftDocument || !rightDocument) {
+      setError("No documents found. Please upload documents to compare.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Simulate a brief loading period for UX
-      setTimeout(() => {
-        // Retrieve the comparison data from localStorage
-        const storedData = localStorage.getItem('compareDocsData');
-        
-        if (!storedData) {
-          setError("No comparison data found. Please try comparing documents again.");
-          setIsLoading(false);
-          return;
-        }
-        
-        const parsedData = JSON.parse(storedData) as ComparisonData;
-        setComparisonData(parsedData);
-        setIsLoading(false);
-      }, 1000);
+      // Different comparison based on document type
+      if (leftDocument.type === 'markdown' && rightDocument.type === 'markdown') {
+        // For markdown, we can directly compare the text content
+        const result = compareTexts(
+          leftDocument.data as string, 
+          rightDocument.data as string,
+          { ignoreWhitespace, ignoreCase }
+        );
+        setDiffResult(result);
+      } else {
+        // For PDFs, we'll need to extract text first
+        // This is a placeholder until PDF text extraction is fully implemented
+        setDiffResult(null);
+      }
+
+      setIsLoading(false);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load comparison data.");
+      console.error('Error comparing documents:', err);
+      setError("Failed to compare documents.");
       setIsLoading(false);
     }
-  }, []);
-
-  const renderContentWithHighlights = (
-    fileName: string | null, 
-    isSource: boolean,
-    differences: ComparisonData["differences"] | undefined
-  ) => {
-    if (!fileName || !differences) {
-      return <p>No content to display</p>;
-    }
-
-    // In a real implementation, we would render the actual document content
-    // with the differences highlighted. For this example, we're just showing
-    // the differences themselves.
-
-    return (
-      <div className="font-mono text-sm whitespace-pre-wrap">
-        {isSource ? (
-          // Show deletions for source document
-          differences.deletions.map((deletion, index) => (
-            <div 
-              key={`deletion-${index}`} 
-              className="bg-destructive/10 text-destructive p-1 mb-2 rounded"
-            >
-              {deletion.line + 1}: {deletion.content}
-            </div>
-          ))
-        ) : (
-          // Show additions for target document
-          differences.additions.map((addition, index) => (
-            <div 
-              key={`addition-${index}`} 
-              className="bg-secondary/10 text-secondary p-1 mb-2 rounded"
-            >
-              {addition.line + 1}: {addition.content}
-            </div>
-          ))
-        )}
-        
-        {(isSource && differences.deletions.length === 0) || 
-        (!isSource && differences.additions.length === 0) ? (
-          <p className="text-muted-foreground italic">
-            No {isSource ? "deletions" : "additions"} detected
-          </p>
-        ) : null}
-      </div>
-    );
-  };
+  }, [leftDocument, rightDocument, ignoreWhitespace, ignoreCase]);
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -110,6 +71,37 @@ export default function ComparePage() {
           <ThemeToggle />
         </div>
       </header>
+
+      <div className="comparison-controls bg-background border-b p-2">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="sync-scroll" 
+              checked={syncScroll} 
+              onCheckedChange={(checked) => setSyncScroll(checked as boolean)}
+            />
+            <Label htmlFor="sync-scroll">Sync scrolling</Label>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="ignore-whitespace" 
+              checked={ignoreWhitespace} 
+              onCheckedChange={(checked) => setIgnoreWhitespace(checked as boolean)}
+            />
+            <Label htmlFor="ignore-whitespace">Ignore whitespace</Label>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="ignore-case" 
+              checked={ignoreCase} 
+              onCheckedChange={(checked) => setIgnoreCase(checked as boolean)}
+            />
+            <Label htmlFor="ignore-case">Ignore case</Label>
+          </div>
+        </div>
+      </div>
 
       <div className="flex-grow p-4">
         {isLoading ? (
@@ -132,40 +124,19 @@ export default function ComparePage() {
               </Button>
             </div>
           </div>
-        ) : comparisonData ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-            <div className="border rounded-lg p-4 bg-card h-full">
-              <div className="border-b pb-2 mb-4">
-                <h2 className="font-medium">{file1Name || comparisonData.file1Name}</h2>
-                <p className="text-xs text-muted-foreground">Original document</p>
-              </div>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {renderContentWithHighlights(
-                  file1Name || comparisonData.file1Name, 
-                  true, 
-                  comparisonData.differences
-                )}
-              </div>
-            </div>
-            
-            <div className="border rounded-lg p-4 bg-card h-full">
-              <div className="border-b pb-2 mb-4">
-                <h2 className="font-medium">{file2Name || comparisonData.file2Name}</h2>
-                <p className="text-xs text-muted-foreground">Modified document</p>
-              </div>
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                {renderContentWithHighlights(
-                  file2Name || comparisonData.file2Name, 
-                  false, 
-                  comparisonData.differences
-                )}
-              </div>
-            </div>
+        ) : leftDocument && rightDocument ? (
+          <div className="h-full">
+            <ComparisonView
+              leftDocument={leftDocument}
+              rightDocument={rightDocument}
+              diffResult={diffResult || undefined}
+              syncScroll={syncScroll}
+            />
           </div>
         ) : (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
-              <p className="text-lg text-destructive">No comparison data available</p>
+              <p className="text-lg text-destructive">No documents available for comparison</p>
               <Button 
                 variant="outline" 
                 className="mt-4"

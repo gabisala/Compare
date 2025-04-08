@@ -1,3 +1,5 @@
+import { Document } from "./document-context";
+
 /**
  * Reads a file and returns its contents as text
  */
@@ -94,5 +96,135 @@ export async function compareFiles(file1: File, file2: File): Promise<{
     file1Content,
     file2Content,
     differences,
+  };
+}
+
+/**
+ * Determine file type from file extension
+ */
+export function getFileType(fileName: string): 'pdf' | 'markdown' | 'unknown' {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  
+  if (extension === 'pdf') {
+    return 'pdf';
+  } else if (['md', 'markdown', 'mdown', 'mkdn'].includes(extension || '')) {
+    return 'markdown';
+  }
+  
+  return 'unknown';
+}
+
+/**
+ * Process uploaded file into the Document structure
+ */
+export async function processFile(file: File): Promise<Document> {
+  const fileType = getFileType(file.name);
+  
+  if (fileType === 'unknown') {
+    throw new Error(`Unsupported file type: ${file.name}`);
+  }
+  
+  if (fileType === 'pdf') {
+    const arrayBuffer = await file.arrayBuffer();
+    return {
+      name: file.name,
+      type: 'pdf',
+      data: arrayBuffer
+    };
+  } else {
+    // Markdown file
+    const text = await file.text();
+    return {
+      name: file.name,
+      type: 'markdown',
+      data: text
+    };
+  }
+}
+
+/**
+ * Validate if file is of a supported type
+ */
+export function validateFile(file: File): { valid: boolean; message?: string } {
+  const fileType = getFileType(file.name);
+  
+  if (fileType === 'unknown') {
+    return {
+      valid: false,
+      message: 'Unsupported file type. Please upload PDF or Markdown files.'
+    };
+  }
+  
+  // Add size validation
+  if (file.size > 10 * 1024 * 1024) { // 10MB
+    return {
+      valid: false,
+      message: 'File too large. Maximum file size is 10MB.'
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Create a sample Markdown document for testing
+ */
+export function createSampleMarkdown(version: 'original' | 'modified'): Document {
+  const originalContent = `# Sample Document
+  
+## Introduction
+
+This is a sample Markdown document used for testing the comparison tool.
+
+## Features
+
+- Bullet points
+- **Bold text**
+- *Italic text*
+
+## Code Example
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello, world!");
+}
+\`\`\`
+
+## Conclusion
+
+Thank you for using this sample document.
+`;
+
+  const modifiedContent = `# Sample Document
+  
+## Introduction
+
+This is a modified sample Markdown document used for testing the comparison tool.
+
+## New Features
+
+- Bullet points
+- **Bold text**
+- *Italic text*
+- Added feature
+
+## Code Example
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello, modified world!");
+  return true;
+}
+\`\`\`
+
+## Conclusion
+
+Thank you for using this modified sample document!
+`;
+
+  return {
+    name: version === 'original' ? 'original.md' : 'modified.md',
+    type: 'markdown',
+    data: version === 'original' ? originalContent : modifiedContent
   };
 } 

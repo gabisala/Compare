@@ -1,7 +1,27 @@
+"use client";
+
 import { ThemeToggle } from "@/components/atoms/theme-toggle";
 import { FileUploadContainer } from "@/components/organisms/file-upload-container";
+import { Button } from "@/components/ui/button";
+import { useDocumentContext } from "@/lib/document-context";
+import { createSampleMarkdown } from "@/lib/file-utils";
+import { useRouter } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 
 export default function Home() {
+  const { setLeftDocument, setRightDocument } = useDocumentContext();
+  const router = useRouter();
+
+  const handleUseSampleDocs = () => {
+    const originalDoc = createSampleMarkdown('original');
+    const modifiedDoc = createSampleMarkdown('modified');
+    
+    setLeftDocument(originalDoc);
+    setRightDocument(modifiedDoc);
+    
+    router.push('/compare');
+  };
+
   return (
     <main className="min-h-screen flex flex-col">
       <header className="border-b bg-background flex items-center justify-between p-4">
@@ -21,6 +41,19 @@ export default function Home() {
           </div>
           
           <FileUploadContainer />
+          
+          <div className="flex flex-col items-center mt-10 pt-6 border-t">
+            <p className="text-muted-foreground mb-4">
+              Don't have documents to compare? Try our sample documents:
+            </p>
+            <Button 
+              onClick={handleUseSampleDocs}
+              className="flex items-center gap-2"
+            >
+              Use Sample Documents
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
